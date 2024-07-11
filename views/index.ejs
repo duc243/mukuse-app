@@ -1,0 +1,47 @@
+<%- include("./common/header.ejs", {title: "Accueil"}) %>
+<div class="w-full h-5/6">
+  <main class="flex flex-1 flex-col w-full h-4/5 justify-center gap-8">
+    <div class="flex flex-col items-center gap-5">
+      <% if (user) { %>
+      <p class="text-xl">Bienvenu <%= user.name %></p>
+      <% } %>
+      <p class="text-2xl/3 text-blue-950">
+        Les bonnes connexions commencent par un clic
+      </p>
+      <h1 class="text-4xl text-blue-300">
+        Créez un compte gratuit et mettez Mukuse à l'œuvre
+      </h1>
+    </div>
+
+    <div class="flex justify-center">
+      <form action="/links" method="post" class="flex flex-col gap-5">
+        <input
+          class="flex-1 w-[30rem] p-4 border-solid border-2 focus:border-sky-500 rounded-md outline-none"
+          type="url"
+          name="link"
+          placeholder="https://exemple.com/long-link"
+          required
+        />
+        <div class="flex flex-1 justify-center">
+          <button
+            class="p-4 text-sky-500 hover:text-black border-solid border-2 border-sky-500 rounded-lg hover:bg-blue-300 bg-blue-100 hover:border-transparent"
+            type="submit"
+            name="action"
+            value="shortLink"
+            id="shortLink"
+          >
+            Generate Short Link
+          </button>
+        </div>
+      </form>
+    </div>
+    <% if (user) { %>
+    <div class="flex justify-center mt-6">
+      <a href="/links" class="text-gray-600 hover:text-sky-300 underline"
+        >Voir la liste de vos liens</a
+      >
+    </div>
+    <% } %>
+  </main>
+  <%- include("./common/footer.ejs") %>
+</div>
