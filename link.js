@@ -59,7 +59,7 @@ const createObjet = async (req, res, client) => {
     return existingLink.rows[0];
   } else {
     const { shortLink, shortLinkId } = await generateShortLink(req, res);
-    const qrCode = await generateQRCode(link);
+    const qrCode = await generateQRCode(shortLink);
 
     const newLink = {
       id: crypto.randomUUID(),

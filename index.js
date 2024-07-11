@@ -66,7 +66,7 @@ passport.use(
     {
       clientID: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      callbackURL: "http://localhost:3000/auth/github/callback",
+      callbackURL: process.env.Call_Back_URL,
     },
     function (accessToken, refreshToken, profile, cb) {
       const user = profile._json;
@@ -125,7 +125,6 @@ app.get("/", (req, res) => {
 app.post("/links", ensureAuthenticated, async (req, res) => {
   try {
     const shortLink = await createObjet(req, res, pgPool);
-    console.log(shortLink);
     res.redirect("/links");
   } catch (err) {
     res.sendStatus(500);
@@ -164,13 +163,13 @@ app.get("/links", ensureAuthenticated, (req, res) => {
 app.get("/:shortLinkId", (req, res) => {
   const { shortLinkId } = req.params;
   pgPool.query(
-    "SELECT * FROM links WHERE shortId = $1 AND valid = true",
+    "SELECT * FROM links WHERE shortid = $1 AND valid = true",
     [shortLinkId],
     (err, result) => {
       if (err || result.rows.length === 0) {
         res.status(404).render("404", { user: req.user });
       } else {
-        res.redirect(result.rows[0].originalLink);
+        res.redirect(result.rows[0].originallink);
       }
     }
   );
