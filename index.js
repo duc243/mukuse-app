@@ -1,23 +1,15 @@
 require("dotenv").config();
+const port = process.env.PORT || 3000;
 const express = require("express");
 const session = require("express-session");
-const SQLiteStore = require("connect-sqlite3")(session);
+const PostgreSQLStore = require("connect-pg-simple")(session);
 const passport = require("passport");
 const GitHubStrategy = require("passport-github").Strategy;
+const { Client } = require("pg");
 
 const app = express();
 
-const links = require("./data/db.json");
-const userPath = "./data/users.json";
-const linkPath = "./data/db.json";
-let users = [];
-let user;
-const {
-  ensureAuthenticated,
-  createObjet,
-  updateDBJSON,
-  ensureValidUrl,
-} = require("./link");
+const { ensureAuthenticated, createObjet, ensureValidUrl } = require("./link");
 
 app.set("view engine", "ejs");
 app.set("views", __dirname + "/views");
@@ -26,8 +18,22 @@ app.use(express.static(__dirname + "/public"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const pgPool = new Client({
+  user: process.env.PG_USER,
+  host: process.env.PG_HOST,
+  database: process.env.PG_DATABASE,
+  password: process.env.PG_PASSWORD,
+  port: process.env.PG_PORT,
+});
+
+pgPool.connect();
+
 app.use(
   session({
+    store: new PostgreSQLStore({
+      pool: pgPool,
+      tableName: "sessions",
+    }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
@@ -36,7 +42,6 @@ app.use(
       secure: false,
       maxAge: 24 * 60 * 60 * 1000,
     },
-    store: new SQLiteStore({ db: "sessions.db", dir: "./data" }),
   })
 );
 
@@ -48,7 +53,12 @@ passport.serializeUser(function (user, cb) {
 });
 
 passport.deserializeUser(function (id, cb) {
-  cb(null, id);
+  pgPool.query("SELECT * FROM users WHERE id = $1", [id], (err, result) => {
+    if (err) {
+      return cb(err);
+    }
+    cb(null, result.rows[0]);
+  });
 });
 
 passport.use(
@@ -59,10 +69,26 @@ passport.use(
       callbackURL: "http://localhost:3000/auth/github/callback",
     },
     function (accessToken, refreshToken, profile, cb) {
-      user = profile._json;
-      users.push(user);
-      updateDBJSON(userPath, users);
-      cb(null, profile);
+      const user = profile._json;
+      const query = {
+        text: "INSERT INTO users (id, login, avatar_url, html_url, name, email, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO UPDATE SET login = EXCLUDED.login, avatar_url = EXCLUDED.avatar_url, html_url = EXCLUDED.html_url, name = EXCLUDED.name, email = EXCLUDED.email, updated_at = EXCLUDED.updated_at",
+        values: [
+          user.id,
+          user.login,
+          user.avatar_url,
+          user.html_url,
+          user.name,
+          user.email,
+          new Date(),
+          new Date(),
+        ],
+      };
+      pgPool.query(query, (err) => {
+        if (err) {
+          return cb(err);
+        }
+        cb(null, profile);
+      });
     }
   )
 );
@@ -79,7 +105,7 @@ app.get(
 );
 
 app.get("/login", (req, res) => {
-  res.render("login", { user });
+  res.render("login", { user: req.user });
 });
 
 app.get("/logout", (req, res) => {
@@ -88,18 +114,17 @@ app.get("/logout", (req, res) => {
       console.error("Erreur lors de la déconnexion :", err);
       return next(err);
     }
-    user = null;
     res.redirect("/"); // Redirige vers la page d'accueil après la déconnexion
   });
 });
 
 app.get("/", (req, res) => {
-  res.render("index", { user });
+  res.render("index", { user: req.user });
 });
 
 app.post("/links", ensureAuthenticated, async (req, res) => {
   try {
-    const shortLink = await createObjet(req, res);
+    const shortLink = await createObjet(req, res, pgPool);
     console.log(shortLink);
     res.redirect("/links");
   } catch (err) {
@@ -109,37 +134,52 @@ app.post("/links", ensureAuthenticated, async (req, res) => {
 
 app.delete("/delete-link", ensureAuthenticated, async (req, res) => {
   const { id } = req.body;
-  const linkIndex = links.findIndex((l) => l.id === id);
-
-  if (linkIndex !== -1) {
-    links[linkIndex].valid = false;
-    updateDBJSON(linkPath, links);
-    res.render("links");
-  } else {
-    res.status(404).redirect("404");
-  }
+  pgPool.query(
+    "UPDATE links SET valid = false WHERE id = $1",
+    [id],
+    (err, result) => {
+      if (err) {
+        res.status(500).send(err);
+      } else {
+        res.redirect("/links");
+      }
+    }
+  );
 });
 
 app.get("/links", ensureAuthenticated, (req, res) => {
-  res.render("links", { user, links });
+  pgPool.query(
+    "SELECT * FROM links WHERE userId = $1 AND valid = true",
+    [req.user.id],
+    (err, result) => {
+      if (err) {
+        res.status(500).send(err);
+      } else {
+        res.render("links", { user: req.user, links: result.rows });
+      }
+    }
+  );
 });
 
 app.get("/:shortLinkId", (req, res) => {
   const { shortLinkId } = req.params;
-  const link = links.find((l) => l.id === shortLinkId);
-
-  if (link && link.valid) {
-    res.redirect(link.originalLink);
-  } else {
-    res.status(404).render("404", { user });
-  }
+  pgPool.query(
+    "SELECT * FROM links WHERE shortId = $1 AND valid = true",
+    [shortLinkId],
+    (err, result) => {
+      if (err || result.rows.length === 0) {
+        res.status(404).render("404", { user: req.user });
+      } else {
+        res.redirect(result.rows[0].originalLink);
+      }
+    }
+  );
 });
 
-app.get("/*", (req, res, next) => {
-  res.render("404", { user });
+app.get("/*", (req, res) => {
+  res.render("404", { user: req.user });
 });
 
-const port = 3000;
 app.listen(port, () => {
   console.log(`http://localhost:${port}`);
 });
