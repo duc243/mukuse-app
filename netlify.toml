@@ -1,8 +1,13 @@
 [build]
-  command = "npm run build"
   functions = "functions"
+  command = "npm run build"
+
+[dev]
+  command = "npm run dev"
+  framework = "#custom"
 
 [[redirects]]
   from = "/*"
-  to = "/.netlify/index"
+  to = "/.netlify/functions/index"
   status = 200
+  

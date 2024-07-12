@@ -2,11 +2,11 @@
   "name": "mukuse",
   "version": "1.3.7",
   "description": "plateforme de racoursisment des liens par short link et QR Code",
-  "main": "functions/server.js",
+  "main": "index.js",
   "scripts": {
     "dev": "node --watch index.js",
     "build": "netlify-lambda build functions",
-    "style": "npx tailwindcss -i ./public/css/index.css -o ./public/css/style.css --watch"
+    "start": "netlify dev"
   },
   "repository": {
     "type": "git",
