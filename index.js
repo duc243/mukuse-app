@@ -1,4 +1,5 @@
 require("dotenv").config();
+const serverless = require("serverless-http");
 const port = process.env.PORT || 3000;
 const express = require("express");
 const session = require("express-session");
@@ -24,6 +25,9 @@ const pgPool = new Client({
   database: process.env.PG_DATABASE,
   password: process.env.PG_PASSWORD,
   port: process.env.PG_PORT,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
 pgPool.connect();
@@ -182,3 +186,5 @@ app.get("/*", (req, res) => {
 app.listen(port, () => {
   console.log(`http://localhost:${port}`);
 });
+
+module.exports.handler = serverless(app);
