@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "node --watch index.js",
+    "build": "netlify-lambda build functions",
     "style": "npx tailwindcss -i ./public/css/index.css -o ./public/css/style.css --watch"
   },
   "repository": {
@@ -28,9 +29,11 @@
     "passport": "^0.7.0",
     "passport-github": "^1.1.0",
     "pg": "^8.12.0",
-    "qrcode": "^1.5.3"
+    "qrcode": "^1.5.3",
+    "serverless-http": "^2.7.0"
   },
   "devDependencies": {
-    "tailwindcss": "^3.4.4"
+    "tailwindcss": "^3.4.4",
+    "netlify-lambda": "^2.0.3"
   }
 }
