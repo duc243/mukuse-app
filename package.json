@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "node --watch index.js",
-    "build": "netlify-lambda build functions",
+    "build": "netlify-lambda build functions --output functions-build",
     "start": "netlify dev"
   },
   "repository": {
